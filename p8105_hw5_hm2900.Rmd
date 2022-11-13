@@ -114,8 +114,118 @@ all_df %>%
 ```
 
 
+## Problem 3
+
+First set the following design elements:
+
+```{r}
+sim_normal_mean = function(n_obs = 30, mu, sigma = 5) {
+  
+  x = rnorm(n = n_obs, mean = mu, sd = sigma)
+  
+  x
+
+}
+```
+
+Set μ=0. Generate 5000 datasets from the model. Save μ^ and the p-value arising from a test of H:μ=0 using α=0.05.
+
+```{r}
+sim_results_df = 
+  expand_grid(
+    mean_value = 0,
+    interation = 1:5000
+  ) %>%
+  mutate(
+    vect_num = map(.x = mean_value, ~sim_normal_mean(mu = .x))
+  ) %>%
+  mutate(
+    estimate_df = map(vect_num, t.test),
+    clean_output = map(estimate_df, broom::tidy) 
+  ) %>%
+  unnest(clean_output) %>%
+  select(estimate, p.value)
+
+sim_results_df
+```
+
+Repeat the above for μ={1,2,3,4,5,6}, and complete the following:
+
+```{r}
+sim_results_changes_df = 
+  expand_grid(
+    mean_value = c(1, 2, 3, 4, 5, 6),
+    interation = 1:5000
+  ) %>%
+  mutate(
+    vect_num = map(.x = mean_value, ~sim_normal_mean(mu = .x))
+  ) %>%
+  mutate(
+    estimate_df = map(vect_num, t.test),
+    clean_output = map(estimate_df, broom::tidy) 
+  ) %>%
+  unnest(clean_output) %>%
+  select(mean_value, estimate, p.value)
+```
+
+Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of μ on the x axis. Describe the association between effect size and power.
+
+```{r}
+sim_results_changes_df %>%
+  mutate(
+    rejection = case_when(
+      p.value < 0.05 ~ 1, 
+      p.value > 0.05 ~ 0
+    )
+  ) %>%
+  group_by(mean_value) %>%
+  summarize(
+    reject = sum(rejection == 1),
+    total = n(),
+    proportion = reject / total
+  ) %>%
+  ggplot(aes(x = mean_value, y = proportion)) +
+  geom_point()
+```
 
 
 
+Make a plot showing the average estimate of μ^ on the y axis and the true value of μ on the x axis.
+Make a second plot (or overlay on the first) the average estimate of μ^ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis.
+
+```{r}
+sim_results_changes_df %>%
+  group_by(mean_value) %>%
+  summarize(
+    average_estimate = mean(estimate)
+  ) %>%
+  ggplot(aes(x = mean_value, y = average_estimate)) +
+  geom_point(color = "red") +
+  labs(
+    title = "Average estimate of μ^ for each true value of μ",
+    x = "True value of μ",
+    y = "Average estimate of μ^")
+```
+
+```{r}
+sim_results_changes_df %>%
+  mutate(
+    rejection = case_when(
+      p.value < 0.05 ~ 1, 
+      p.value > 0.05 ~ 0
+    )
+  ) %>%
+  filter(rejection == 1) %>%
+  group_by(mean_value) %>%
+  summarize(
+    average_estimate_reject = mean(estimate)
+  ) %>%
+  ggplot(aes(x = mean_value, y = average_estimate_reject)) +
+  geom_point(color = "blue") +
+  labs(
+    title = "Average estimate of μ^ only in samples for which the null was rejected for each true value of μ",
+    x = "True value of μ",
+    y = "Average estimate of μ^ rejected")
+```
 
 

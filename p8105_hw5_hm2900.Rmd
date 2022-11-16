@@ -5,7 +5,6 @@ output: github_document
 
 ```{r setup, include = FALSE, message = FALSE, warning=FALSE}
 library(tidyverse)
-library(rvest)
 
 knitr::opts_chunk$set(
   echo = TRUE,
@@ -25,6 +24,50 @@ options(
 scale_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
+
+## Problem 1
+
+Load data files.
+
+```{r message = FALSE}
+full_df = 
+  tibble(
+    files = list.files("data/zip_data/"),
+    path = str_c("data/zip_data/", files)
+  ) %>% 
+  mutate(data = map(path, read_csv)) %>% 
+  unnest()
+```
+
+Tidy the dataframe through using string manipulations on the file, converting from wide to long, and selecting relevant variables.
+
+```{r}
+tidy_df = 
+  full_df %>% 
+  mutate(
+    files = str_replace(files, ".csv", ""),
+    group = str_sub(files, 1, 3)) %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    values_to = "outcome",
+    names_prefix = "week_") %>% 
+  mutate(week = as.numeric(week)) %>% 
+  select(group, subj = files, week, outcome)
+```
+
+Make a spaghetti plot showing observations on each subject over time, and comment on differences between groups.
+
+```{r}
+tidy_df %>% 
+  ggplot(aes(x = week, y = outcome, group = subj, color = group)) + 
+  geom_point() + 
+  geom_path() + 
+  facet_grid(~group)
+```
+
+This plot suggests high within-subject correlation -- subjects who start above average end up above average, and those that start below average end up below average. Subjects in the control group generally don't change over time, but those in the experiment group increase their outcome in a roughly linear way.
+
 
 ## Problem 2
 
@@ -185,13 +228,17 @@ sim_results_changes_df %>%
     proportion = reject / total
   ) %>%
   ggplot(aes(x = mean_value, y = proportion)) +
-  geom_point()
+  geom_point() +
+  labs(
+    title = "Proportion of times the null was rejected (the power of the test) for each true value of μ",
+    x = "True value of μ",
+    y = "Power of the test")
 ```
 
+Based on the plot, we can see that as the true value of μ increases from 1 to 5, the power of the test is also increasing. However, when the true value of μ increases from 5 ro 6, the power has almost no changes. Thus the conclusion would be that as sample size keeps the same, the higher the effect size is, the larger the power will be.
 
 
 Make a plot showing the average estimate of μ^ on the y axis and the true value of μ on the x axis.
-Make a second plot (or overlay on the first) the average estimate of μ^ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis.
 
 ```{r}
 sim_results_changes_df %>%
@@ -206,6 +253,8 @@ sim_results_changes_df %>%
     x = "True value of μ",
     y = "Average estimate of μ^")
 ```
+
+Make a second plot (or overlay on the first) the average estimate of μ^ only in samples for which the null was rejected on the y axis and the true value of μ on the x axis. Is the sample average of μ^ across tests for which the null is rejected approximately equal to the true value of μ? Why or why not?
 
 ```{r}
 sim_results_changes_df %>%
@@ -228,4 +277,4 @@ sim_results_changes_df %>%
     y = "Average estimate of μ^ rejected")
 ```
 
-
+Based on the plots above, the sample average of μ^ across tests for which the null is rejected is not approximately equal to the true value of μ. Since the null hypothesis we are testing is H0:μ^=μ using α=0.05. As a result of test if at 95% confidence level there is sufficient evidence to reject the null, it is safe to conclude that μ^ is not equal to μ.
